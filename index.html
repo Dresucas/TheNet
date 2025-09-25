@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Network Background. | Designed by Dresucas</title>
+    <!-- Use Tailwind CSS for a clean, modern look -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Import the Montserrat font from Google Fonts */
+      @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;800&display=swap");
+
+      /* This is the core CSS for the canvas to fill the entire viewport */
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: "Inter", sans-serif;
+        background-color: #000;
+        transition: background-color 0.5s ease-in-out;
+      }
+
+      body.light-mode {
+        background-color: #fff;
+      }
+      
+      #bgCanvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+      }
+
+      .content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: white;
+        text-align: center;
+        padding: 2rem;
+        transition: color 0.5s ease-in-out;
+      }
+
+      body.light-mode .content {
+        color: #333;
+      }
+      
+      .title {
+        font-family: "montserrat";
+        font-weight: 800;
+        font-size: 20px;
+        letter-spacing: 3px;
+        margin-top: 20px;
+        transition: 0.4s all ease;
+      }
+
+      .title:hover {
+        scale: 0.9;
+        cursor: default;
+        letter-spacing: 0px;
+      }
+
+      /* New styling for the main heading */
+      .main-title {
+        position: absolute;
+        top: 50%;
+        left: 20%;
+        transform: translate(-50%, -50%);
+        font-family: "Montserrat", sans-serif;
+        font-weight: 800;
+        font-size: 3rem;
+        letter-spacing: 0.2rem;
+        color: white;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        transition: color 0.5s ease-in-out, text-shadow 0.5s ease-in-out;
+      }
+
+      body.light-mode .main-title {
+        color: #333;
+        text-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      }
+      
+      @media (max-width: 768px) {
+        .main-title {
+          font-size: 2rem;
+          left: 50%;
+          text-align: center;
+        }
+        .controls {
+          position: relative;
+          top: 0;
+          transform: none;
+          margin-top: 2rem;
+          height: auto;
+        }
+      }
+
+      /* Base styling for the controls div */
+      .controls {
+        width: 50%;
+        max-width: 400px;
+        right: 5vw; /* Aligned to the right */
+        top: 50%;
+        transform: translateY(-50%);
+        position: fixed;
+        height: 50vh;
+        max-height: 80vh;
+        background-color: rgba(255, 255, 255, 0.116);
+        border-radius: 10px;
+        backdrop-filter: blur(100px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2.5rem;
+        transition: height 0.3s ease-in-out, width 0.3s ease-in-out, border-radius 0.3s ease-in-out, background-color 0.5s ease-in-out;
+        will-change: height, width;
+        min-width: 200px;
+        min-height: 250px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      body.light-mode .controls {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+      
+      /* New styles for the collapsed state */
+      .controls.collapsed {
+        height: 50px !important;
+        width: 50px !important;
+        padding: 0;
+        border-radius: 1px; /* The requested change */
+        cursor: default;
+      }
+
+      .controls.collapsed .controls-content,
+      .controls.collapsed .resize-handle {
+        display: none;
+      }
+
+      .controls-content {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 40px; /* Offset for the header */
+        overflow-y: auto; /* Allow scrolling for small dimensions */
+      }
+      
+      .controls-header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 40px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        user-select: none;
+      }
+
+
+      /* --- Custom Scrollbar for Controls Panel --- */
+      .controls-content::-webkit-scrollbar {
+        width: 5px; /* Width of the scrollbar */
+      }
+
+      .controls-content::-webkit-scrollbar-track {
+        background: transparent; /* Makes the track background invisible */
+      }
+
+      .controls-content::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+      }
+
+      /* For Firefox */
+      .controls-content {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+      }
+      /* --- End Custom Scrollbar --- */
+
+
+      .collapse-btn {
+        position: absolute;
+        right: 15px;
+        top: 10px;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: transform 0.2s ease-in-out, color 0.5s ease-in-out;
+      }
+
+      .collapse-btn:hover {
+        transform: scale(1.1);
+      }
+
+      body.light-mode .collapse-btn {
+        color: #333;
+      }
+      
+      /* New style to center the collapse button when collapsed */
+      .controls.collapsed .collapse-btn {
+        top: 50%;
+        right: 50%;
+        transform: translate(50%, -50%);
+      }
+
+
+      /* Removed the glowing border pseudo-elements */
+      .controls::before,
+      .controls::after {
+        display: none;
+      }
+
+      /* Custom styling for the slider and its container */
+      .slider-container {
+        width: 80%;
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* General slider track styling */
+      .slider-track {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.3);
+        outline: none;
+        border-radius: 5px;
+        transition: opacity .2s, background 0.5s ease-in-out;
+      }
+
+      body.light-mode .slider-track {
+        background: rgba(0, 0, 0, 0.3);
+      }
+
+      .slider-track:hover {
+        opacity: 1;
+      }
+
+      /* Specific styling for the color gradient sliders */
+      #hueSlider {
+        background: linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%));
+      }
+
+      #lightnessSlider {
+        background: linear-gradient(to right, #000000, #ffffff);
+      }
+      
+      /* Webkit-specific thumb styling with elastic effect */
+      .slider-track::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        background: #ffffff; /* Default background for all thumbs */
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      body.light-mode .slider-track::-webkit-slider-thumb {
+        background: #333;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+      }
+      
+      /* Webkit-specific thumb active state */
+      .slider-track:active::-webkit-slider-thumb {
+        transform: scale(1.3);
+        box-shadow: 0 0 15px rgba(255, 255, 255, 1);
+      }
+      
+      /* Webkit-specific thumb styling for the HUE slider only */
+      #hueSlider::-webkit-slider-thumb {
+        background: hsl(var(--thumb-hue, 0), 100%, 50%);
+        box-shadow: 0 0 5px hsl(var(--thumb-hue, 0), 100%, 50%);
+      }
+      
+      /* Mozilla-specific thumb styling with elastic effect */
+      .slider-track::-moz-range-thumb {
+        width: 15px;
+        height: 15px;
+        background: #ffffff; /* Default background for all thumbs */
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      body.light-mode .slider-track::-moz-range-thumb {
+        background: #333;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+      }
+      
+      /* Mozilla-specific thumb active state */
+      .slider-track:active::-moz-range-thumb {
+        transform: scale(1.3);
+        box-shadow: 0 0 15px rgba(255, 255, 255, 1);
+      }
+
+      /* Mozilla-specific thumb styling for the HUE slider only */
+      #hueSlider::-moz-range-thumb {
+        background: hsl(var(--thumb-hue, 0), 100%, 50%);
+        box-shadow: 0 0 5px hsl(var(--thumb-hue, 0), 100%, 50%);
+      }
+
+      .checkbox-container {
+        display: flex;
+        gap: 1rem;
+        margin-top: 20px;
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      /* Button Styles */
+      .action-button {
+        padding: 0.5rem 1.5rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        color: white;
+        transition: all 0.3s ease-in-out, color 0.5s ease-in-out;
+      }
+
+      body.light-mode .action-button {
+        color: #333;
+      }
+
+      .reset-button {
+        background-color: rgba(74, 85, 104, 0.3); /* a darker shade of gray */
+      }
+
+      .reset-button:hover {
+        background-color: rgba(168, 85, 247, 0.6); /* Purple glow */
+        box-shadow: 0 0 15px #a855f7;
+      }
+
+      .github-button {
+        background-color: rgba(74, 85, 104, 0.3);
+      }
+
+      .github-button:hover {
+        background-color: rgba(72, 187, 120, 0.6); /* Green glow */
+        box-shadow: 0 0 15px #48bb78;
+      }
+
+      /* New button style for theme toggle */
+      .theme-toggle-button {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 9999px;
+        transition: all 0.3s ease-in-out, background-color 0.5s ease-in-out;
+      }
+      
+      body.light-mode .theme-toggle-button {
+        color: #333;
+      }
+
+      .theme-toggle-button:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        scale: 1.1;
+      }
+
+      body.light-mode .theme-toggle-button:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+
+      .footer-text {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.5);
+        transition: color 0.5s ease-in-out;
+      }
+
+      body.light-mode .footer-text {
+        color: rgba(0, 0, 0, 0.5);
+      }
+
+      .footer-text a {
+        font-weight: bold;
+        text-decoration: none;
+        transition: color 0.3s ease-in-out;
+      }
+      
+      .footer-text a:hover {
+        color: #a855f7;
+      }
+    </style>
+  </head>
+  <body class="bg-black">
+    <!-- The canvas element where the animation will be rendered -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- The main content overlaying the canvas -->
+    <div class="content">
+      <!-- Theme toggle button -->
+      <button id="theme-toggle-btn" class="theme-toggle-button" title="Toggle Theme">
+        <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+          <path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.106a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.06l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.243 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.06 1.06l1.59 1.591ZM12 18.75a.75.75 0 0 1-.75.75v2.25a.75.75 0 0 1 1.5 0v-2.25a.75.75 0 0 1-.75-.75ZM4.21 17.243a.75.75 0 0 0 1.06 1.06l1.591-1.59a.75.75 0 0 0-1.06-1.06l-1.591 1.59ZM3 12a.75.75 0 0 1 .75-.75h2.25a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm2.626-5.265a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.06l1.591-1.59Z" />
+        </svg>
+      </button>
+
+      <div class="controls" id="controls">
+        <div class="controls-header" id="controls-header">
+          <div class="title">Controls</div>
+          <button id="collapse-btn" class="collapse-btn" title="Collapse/Expand">
+            <svg id="collapse-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+              <path d="M11.9997 10.7061L16.9495 5.75635L18.3637 7.16956L13.4139 12.1193L18.3637 17.0691L16.9495 18.4833L11.9997 13.5336L7.04996 18.4833L5.63574 17.0691L10.5855 12.1193L5.63574 7.16956L7.04996 5.75635L11.9997 10.7061Z" transform="rotate(45 11.9997 12.1193)"/>
+            </svg>
+          </button>
+        </div>
+
+        <div id="controls-content" class="controls-content">
+          <!-- Particle count slider -->
+          <div class="slider-container">
+            <label for="particleSlider" class="text-xs tracking-wide">
+              Particle Count: <span id="particleCountValue">150</span>
+            </label>
+            <input type="range" id="particleSlider" class="slider-track" min="1" max="1000" value="150">
+          </div>
+          <!-- Color hue slider -->
+          <div class="slider-container">
+            <label for="hueSlider" class="text-xs tracking-wide">
+              Color Hue: <span id="hueValue">0</span>°
+            </label>
+            <input type="range" id="hueSlider" class="slider-track" min="0" max="360" value="0">
+          </div>
+          <!-- Lightness/Opacity slider -->
+          <div class="slider-container">
+            <label for="lightnessSlider" class="text-xs tracking-wide">
+              Opacity: <span id="lightnessValue">100</span>%
+            </label>
+            <input type="range" id="lightnessSlider" class="slider-track" min="0" max="100" value="100">
+          </div>
+          <!-- Line Speed slider -->
+          <div class="slider-container">
+            <label for="lineSpeedSlider" class="text-xs tracking-wide">
+              Line Speed: <span id="lineSpeedValue">0.5</span>
+            </label>
+            <input type="range" id="lineSpeedSlider" class="slider-track" min="0.0" max="2.0" step="0.01" value="0.5">
+          </div>
+          <!-- Particle Speed slider -->
+          <div class="slider-container">
+            <label for="particleSpeedSlider" class="text-xs tracking-wide">
+              Particle Speed: <span id="particleSpeedValue">0.5</span>
+            </label>
+            <input type="range" id="particleSpeedSlider" class="slider-track" min="0.0" max="2.0" step="0.01" value="0.5">
+          </div>
+
+          <!-- Black/White/Trail Checkbox container -->
+          <div class="checkbox-container">
+            <div class="flex gap-4">
+              <div class="checkbox-item">
+                <label class="text-xs tracking-wide flex items-center gap-1">
+                  <input type="checkbox" id="whiteModeCheckbox" class="form-checkbox text-gray-800 rounded">
+                  White Mode
+                </label>
+              </div>
+              <div class="checkbox-item">
+                <label class="text-xs tracking-wide flex items-center gap-1">
+                  <input type="checkbox" id="blackModeCheckbox" class="form-checkbox text-gray-800 rounded">
+                  Black Mode
+                </label>
+              </div>
+            </div>
+            <div class="checkbox-item mt-2">
+              <label class="text-xs tracking-wide flex items-center gap-1">
+                <input type="checkbox" id="leaveTrailCheckbox" class="form-checkbox text-gray-800 rounded">
+                Leave Trail
+              </label>
+            </div>
+          </div>
+
+          <!-- Button container -->
+          <div class="flex mt-8 gap-4 w-full justify-center">
+            <button id="resetButton" class="action-button reset-button">
+              Reset
+            </button>
+            <a href="https://github.com/google/immersive-web-apps-and-games" target="_blank" id="githubButton" class="action-button github-button">
+              GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+      <p class="footer-text">
+        Created with 💖 by <a href="https://github.com/Dresucas" target="_blank">@Dresucas</a>
+      </p>
+      
+      <!-- New title element -->
+      <h1 class="main-title">
+        The Network: <br /> A Design
+      </h1>
+    </div>
+
+    <script>
+      // Use a self-executing anonymous function to keep variables out of the global scope
+      (() => {
+        let canvas;
+        let ctx;
+        let particles = [];
+        let mouse = {
+          x: null,
+          y: null,
+          radius: 150, // Defines the connection and repulsion radius
+        };
+        
+        let particleCount = 150; // Initial particle count
+        let currentHue = 0; // Initial hue for the particles
+        let currentOpacity = 100; // Initial opacity for the particles
+        let particleSpeed = 0.5; // Initial random motion speed
+        let lineSpeed = 0.5; // Initial repulsion speed
+        let isLightMode = false;
+        let leaveTrail = false;
+
+        // Get elements for dragging, resizing, and collapsing
+        const body = document.body;
+        const controls = document.getElementById('controls');
+        const collapseBtn = document.getElementById('collapse-btn');
+        const collapseIcon = document.getElementById('collapse-icon');
+        const controlsContent = document.getElementById('controls-content');
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        const themeIcon = document.getElementById('theme-icon');
+
+        let isCollapsed = false;
+
+        // --- Collapse/Expand functionality ---
+        collapseBtn.addEventListener('click', () => {
+          if (isCollapsed) {
+            // Expand the panel
+            controls.style.height = '50vh';
+            controls.style.width = '50%';
+            controls.style.maxWidth = '400px';
+            controls.classList.remove('collapsed');
+            isCollapsed = false;
+            collapseIcon.style.transform = 'rotate(45deg)';
+          } else {
+            // Collapse the panel
+            controls.style.height = '50px';
+            controls.style.width = '50px';
+            controls.style.maxWidth = '50px';
+            controls.classList.add('collapsed');
+            isCollapsed = true;
+            collapseIcon.style.transform = 'rotate(0deg)';
+          }
+        });
+        
+        // --- Theme Toggle functionality ---
+        themeToggleBtn.addEventListener('click', () => {
+          isLightMode = !isLightMode;
+          body.classList.toggle('light-mode', isLightMode);
+          if (isLightMode) {
+            themeIcon.innerHTML = `<path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.106a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.06l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.243 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.06 1.06l1.59 1.591ZM12 18.75a.75.75 0 0 1-.75.75v2.25a.75.75 0 0 1 1.5 0v-2.25a.75.75 0 0 1-.75-.75ZM4.21 17.243a.75.75 0 0 0 1.06 1.06l1.591-1.59a.75.75 0 0 0-1.06-1.06l-1.591 1.59ZM3 12a.75.75 0 0 1 .75-.75h2.25a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm2.626-5.265a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.06l1.591-1.59Z" />`;
+          } else {
+            themeIcon.innerHTML = `<path d="M9.53033 2.62678C9.53033 2.62678 9.53033 2.62678 9.53033 2.62678C5.2223 2.62678 1.75 6.1362 1.75 10.4697C1.75 14.8031 5.2223 18.3126 9.53033 18.3126C11.531 18.3126 13.3444 17.5186 14.6974 16.2081C16.0306 14.9157 16.8293 13.1365 16.8293 11.1611C16.8293 11.0827 16.8293 11.0118 16.8293 10.9506C16.8293 10.9255 16.8293 10.9082 16.8293 10.8909C16.8293 10.8806 16.8293 10.8659 16.8293 10.8507C16.8293 10.8441 16.8293 10.8385 16.8293 10.8335C16.8293 10.8222 16.8293 10.8036 16.8293 10.7816C16.8293 10.7712 16.8293 10.7554 16.8293 10.7323C16.8293 10.7228 16.8293 10.7077 16.8293 10.686C16.8293 10.6723 16.8293 10.6521 16.8293 10.6213C16.8293 10.6157 16.8293 10.6106 16.8293 10.6053C16.8293 10.5973 16.8293 10.5855 16.8293 10.5636C16.8293 10.5518 16.8293 10.536 16.8293 10.5181C16.8293 10.5057 16.8293 10.4905 16.8293 10.4735C16.8293 10.4611 16.8293 10.4431 16.8293 10.4136C16.8293 10.4001 16.8293 10.3804 16.8293 10.347C16.8293 10.3341 16.8293 10.3117 16.8293 10.2764C16.8293 10.2642 16.8293 10.2443 16.8293 10.2079C16.8293 10.1983 16.8293 10.1818 16.8293 10.1582C16.8293 10.1477 16.8293 10.1293 16.8293 10.0961C16.8293 10.0825 16.8293 10.0617 16.8293 10.0275C16.8293 10.0125 16.8293 9.98818 16.8293 9.94589C16.8293 9.92383 16.8293 9.8966 16.8293 9.85172C16.8293 9.82928 16.8293 9.7997 16.8293 9.75231C16.8293 9.72809 16.8293 9.69741 16.8293 9.6451C16.8293 9.61905 16.8293 9.58572 16.8293 9.53587C16.8293 9.51037 16.8293 9.47547 16.8293 9.41846C16.8293 9.38792 16.8293 9.35123 16.8293 9.2941C16.8293 9.26388 16.8293 9.22744 16.8293 9.17646C16.8293 9.14819 16.8293 9.11267 16.8293 9.06249C16.8293 9.03463 16.8293 9.00031 16.8293 8.94933C16.8293 8.92147 16.8293 8.88715 16.8293 8.83546C16.8293 8.80718 16.8293 8.77166 16.8293 8.72149C16.8293 8.69466 16.8293 8.6631 16.8293 8.61466C16.8293 8.5868 16.8293 8.55248 16.8293 8.5008C16.8293 8.47352 16.8293 8.44196 16.8293 8.39352C16.8293 8.36566 16.8293 8.33134 16.8293 8.27965C16.8293 8.24943 16.8293 8.21391 16.8293 8.16374C16.8293 8.13645 16.8293 8.10489 16.8293 8.05645C16.8293 8.02859 16.8293 7.99427 16.8293 7.94258C16.8293 7.91585 16.8293 7.88429 16.8293 7.83689C16.8293 7.80903 16.8293 7.77471 16.8293 7.72302C16.8293 7.69536 16.8293 7.6638 16.8293 7.61639C16.8293 7.58863 16.8293 7.55431 16.8293 7.50262C16.8293 7.47525 16.8293 7.44369 16.8293 7.39628C16.8293 7.36852 16.8293 7.3342 16.8293 7.28251C16.8293 7.25475 16.8293 7.22043 16.8293 7.16874C16.8293 7.14137 16.8293 7.10981 16.8293 7.0624C16.8293 7.03464 16.8293 7.00032 16.8293 6.94863C16.8293 6.92126 16.8293 6.8897 16.8293 6.84229C16.8293 6.81453 16.8293 6.78021 16.8293 6.72852C16.8293 6.70114 16.8293 6.66958 16.8293 6.62217C16.8293 6.59441 16.8293 6.56009 16.8293 6.5084C16.8293 6.48064 16.8293 6.44632 16.8293 6.39463C16.8293 6.36726 16.8293 6.3357 16.8293 6.28829C16.8293 6.26053 16.8293 6.22621 16.8293 6.17452C16.8293 6.14714 16.8293 6.11558 16.8293 6.06817C16.8293 6.04041 16.8293 6.00609 16.8293 5.9544C16.8293 5.92703 16.8293 5.89547 16.8293 5.84806C16.8293 5.8203 16.8293 5.78598 16.8293 5.73429C16.8293 5.70692 16.8293 5.67536 16.8293 5.62795C16.8293 5.60019 16.8293 5.56587 16.8293 5.51418C16.8293 5.48681 16.8293 5.45525 16.8293 5.40784C16.8293 5.38008 16.8293 5.34576 16.8293 5.29407C16.8293 5.2667 16.8293 5.23514 16.8293 5.18773C16.8293 5.15997 16.8293 5.12565 16.8293 5.07396C16.8293 5.04659 16.8293 5.01503 16.8293 4.96762C16.8293 4.93986 16.8293 4.90554 16.8293 4.85385C16.8293 4.82648 16.8293 4.79492 16.8293 4.74751C16.8293 4.71975 16.8293 4.68543 16.8293 4.63374C16.8293 4.60637 16.8293 4.57481 16.8293 4.5274C16.8293 4.49964 16.8293 4.46532 16.8293 4.41363C16.8293 4.38626 16.8293 4.3547 16.8293 4.30729C16.8293 4.27953 16.8293 4.24521 16.8293 4.19352C16.8293 4.16614 16.8293 4.13458 16.8293 4.08717C16.8293 4.05941 16.8293 4.02509 16.8293 3.9734C16.8293 3.94603 16.8293 3.91447 16.8293 3.86706C16.8293 3.8393 16.8293 3.80498 16.8293 3.75329C16.8293 3.72592 16.8293 3.69436 16.8293 3.64695C16.8293 3.61919 16.8293 3.58487 16.8293 3.53318C16.8293 3.50581 16.8293 3.47425 16.8293 3.42684C16.8293 3.39908 16.8293 3.36476 16.8293 3.31307C16.8293 3.2857 16.8293 3.25414 16.8293 3.20673C16.8293 3.17897 16.8293 3.14465 16.8293 3.09296C16.8293 3.06559 16.8293 3.03403 16.8293 2.98662C16.8293 2.95886 16.8293 2.92454 16.8293 2.87285C16.8293 2.84548 16.8293 2.81392 16.8293 2.76651C16.8293 2.73875 16.8293 2.70443 16.8293 2.65274C16.8293 2.62678 9.53033 2.62678 9.53033 2.62678Z"/>`;
+          }
+        });
+
+        // This function creates a particle object with a random position, size, and velocity
+        function createParticle() {
+          return {
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            baseX: Math.random() * canvas.width,
+            baseY: Math.random() * canvas.height,
+            radius: Math.random() * 2 + 1,
+            density: Math.random() * 40 + 5, // Used for mouse interaction
+            velocity: {
+              // Apply the particleSpeed to the initial velocity
+              x: (Math.random() - 0.5) * particleSpeed,
+              y: (Math.random() - 0.5) * particleSpeed,
+            },
+          };
+        }
+
+        // Function to update the number of particles
+        function updateParticleCount(newCount) {
+          particleCount = newCount;
+          particles = []; // Clear existing particles
+          for (let i = 0; i < particleCount; i++) {
+            particles.push(createParticle());
+          }
+        }
+
+        // The main drawing loop, which is called for every frame
+        function draw() {
+          // Clear the canvas with a solid or semi-transparent color to prevent or create a trailing effect
+          if (leaveTrail) {
+            ctx.fillStyle = isLightMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          } else {
+            ctx.fillStyle = isLightMode ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+
+          // Iterate over each particle and update its position and draw it
+          for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+
+            // Update the particle's position regardless of mouse interaction
+            p.x += p.velocity.x;
+            p.y += p.velocity.y;
+
+            // If a particle goes off-screen, reset its position
+            if (
+              p.x < 0 ||
+              p.x > canvas.width ||
+              p.y < 0 ||
+              p.y > canvas.height
+            ) {
+              particles[i] = createParticle();
+            }
+
+            // Check for mouse interaction
+            let dx = mouse.x - p.x;
+            let dy = mouse.y - p.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Default values
+            let finalHue = currentHue;
+            let finalLightness = 50; 
+
+            const whiteModeCheckbox = document.getElementById("whiteModeCheckbox");
+            const blackModeCheckbox = document.getElementById("blackModeCheckbox");
+
+            if (whiteModeCheckbox.checked) {
+                finalHue = 0;
+                finalLightness = 100;
+            } else if (blackModeCheckbox.checked) {
+                finalHue = 0;
+                finalLightness = 0;
+            }
+
+            let baseOpacity = currentOpacity / 100;
+            let dimColor = `hsla(${finalHue}, 100%, ${finalLightness}%, ${baseOpacity * 0.3})`;
+            let brightColor = `hsla(${finalHue}, 100%, ${finalLightness}%, ${baseOpacity})`;
+            
+            if (distance < mouse.radius) {
+              // Draw a glowing line from the particle to the mouse cursor
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(mouse.x, mouse.y);
+              const opacity = 1 - distance / mouse.radius;
+              ctx.strokeStyle = `hsla(${finalHue}, 100%, ${finalLightness}%, ${baseOpacity * opacity})`;
+              ctx.lineWidth = 1;
+              ctx.shadowBlur = 10;
+              ctx.shadowColor = `hsla(${finalHue}, 100%, ${finalLightness}%, ${baseOpacity * opacity})`;
+              ctx.stroke();
+
+              // Repel the particle from the cursor
+              let angle = Math.atan2(dy, dx);
+              let force = mouse.radius / distance;
+              let directionX = Math.cos(angle) * force;
+              let directionY = Math.sin(angle) * force;
+              // Apply the lineSpeed to the repulsion force
+              p.x -= directionX * lineSpeed; 
+              p.y -= directionY * lineSpeed;
+
+              // Set fill style to bright color for active particles
+              ctx.fillStyle = brightColor;
+
+              // Make the particle glow when it's near the cursor
+              ctx.shadowBlur = 20; // Increased blur for a more visible glow
+              ctx.shadowColor = `hsla(${finalHue}, 100%, ${finalLightness}%, ${baseOpacity * (1 - distance / mouse.radius)})`;
+            } else {
+              // Set fill style to dim color for inactive particles
+              ctx.fillStyle = dimColor;
+              // No glow for inactive particles
+              ctx.shadowBlur = 0;
+            }
+
+            // Draw the particle as a filled circle
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2, false);
+            ctx.fill();
+
+            // Reset the shadow blur after drawing the particle to avoid affecting other elements
+            ctx.shadowBlur = 0;
+          }
+
+          // Request the next animation frame
+          requestAnimationFrame(draw);
+        }
+
+        // Initialization function called when the window loads
+        function init() {
+          // Get the canvas and its 2D context
+          canvas = document.getElementById("bgCanvas");
+          ctx = canvas.getContext("2d");
+
+          // Set canvas size to the full window size
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+
+          // Create the initial set of particles
+          for (let i = 0; i < particleCount; i++) {
+            particles.push(createParticle());
+          }
+
+          // Listen for mouse movement to update the mouse object's position
+          window.addEventListener("mousemove", (event) => {
+            // Update mouse coordinates for the particle logic
+            mouse.x = event.x;
+            mouse.y = event.y;
+          });
+
+          // On mouse out, reset the mouse position so particles return to normal
+          window.addEventListener("mouseout", () => {
+            mouse.x = undefined;
+            mouse.y = undefined;
+          });
+
+          // Ensure the canvas resizes when the window changes
+          window.addEventListener("resize", () => {
+            if (canvas) {
+              canvas.width = window.innerWidth;
+              canvas.height = window.innerHeight;
+            }
+          });
+
+          // Get slider and value elements
+          const controls = document.getElementById("controls");
+          const particleSlider = document.getElementById("particleSlider");
+          const particleValueDisplay = document.getElementById("particleCountValue");
+          const hueSlider = document.getElementById("hueSlider");
+          const hueValueDisplay = document.getElementById("hueValue");
+          const lightnessSlider = document.getElementById("lightnessSlider");
+          const lightnessValueDisplay = document.getElementById("lightnessValue");
+          const lineSpeedSlider = document.getElementById("lineSpeedSlider");
+          const lineSpeedValueDisplay = document.getElementById("lineSpeedValue");
+          const particleSpeedSlider = document.getElementById("particleSpeedSlider");
+          const particleSpeedValueDisplay = document.getElementById("particleSpeedValue");
+          const resetButton = document.getElementById("resetButton");
+          const whiteModeCheckbox = document.getElementById("whiteModeCheckbox");
+          const blackModeCheckbox = document.getElementById("blackModeCheckbox");
+          const leaveTrailCheckbox = document.getElementById("leaveTrailCheckbox");
+
+          // Function to update the thumb color for the HUE slider
+          function updateHueThumbColor() {
+            // Set a new CSS variable directly on the hueSlider element
+            hueSlider.style.setProperty('--thumb-hue', hueSlider.value);
+            // Also update the border color of the controls panel
+            controls.style.setProperty('--border-hue', hueSlider.value);
+          }
+          
+          // Update the displayed value as the slider is moved
+          particleSlider.addEventListener("input", (e) => {
+            particleValueDisplay.textContent = e.target.value;
+          });
+
+          // Update the particle count when the mouse leaves the slider
+          particleSlider.addEventListener("mouseup", (e) => {
+            updateParticleCount(e.target.value);
+          });
+          
+          // Fallback for mobile touch events
+          particleSlider.addEventListener("touchend", (e) => {
+            updateParticleCount(e.target.value);
+          });
+          
+          // Update the hue value as the slider is moved
+          hueSlider.addEventListener("input", (e) => {
+            currentHue = e.target.value;
+            hueValueDisplay.textContent = currentHue;
+            updateHueThumbColor();
+          });
+          
+          // Update the lightness/opacity value as the slider is moved
+          lightnessSlider.addEventListener("input", (e) => {
+            currentOpacity = e.target.value;
+            lightnessValueDisplay.textContent = currentOpacity;
+          });
+
+          // Update the line speed as the slider is moved
+          lineSpeedSlider.addEventListener("input", (e) => {
+            lineSpeed = parseFloat(e.target.value);
+            lineSpeedValueDisplay.textContent = e.target.value;
+          });
+          
+          // Update the particle speed and reset particles when the slider is moved
+          particleSpeedSlider.addEventListener("mouseup", (e) => {
+             particleSpeed = parseFloat(e.target.value);
+             particleSpeedValueDisplay.textContent = e.target.value;
+             updateParticleCount(particleCount); // Reset with new speed
+          });
+
+          particleSpeedSlider.addEventListener("touchend", (e) => {
+             particleSpeed = parseFloat(e.target.value);
+             particleSpeedValueDisplay.textContent = e.target.value;
+             updateParticleCount(particleCount); // Reset with new speed
+          });
+          
+          particleSpeedSlider.addEventListener("input", (e) => {
+            particleSpeedValueDisplay.textContent = e.target.value;
+          });
+
+          // Handle the Black/White mode checkboxes
+          whiteModeCheckbox.addEventListener('change', () => {
+            if (whiteModeCheckbox.checked) {
+              blackModeCheckbox.checked = false;
+            }
+          });
+          
+          blackModeCheckbox.addEventListener('change', () => {
+            if (blackModeCheckbox.checked) {
+              whiteModeCheckbox.checked = false;
+            }
+          });
+          
+          // Handle the Leave Trail checkbox
+          leaveTrailCheckbox.addEventListener('change', (e) => {
+            leaveTrail = e.target.checked;
+          });
+
+          // Add the reset button functionality
+          resetButton.addEventListener("click", () => {
+            // Reset all values to their initial state
+            particleCount = 150;
+            currentHue = 0;
+            currentOpacity = 100;
+            particleSpeed = 0.5;
+            lineSpeed = 0.5;
+
+            // Reset checkboxes
+            whiteModeCheckbox.checked = false;
+            blackModeCheckbox.checked = false;
+            leaveTrailCheckbox.checked = false;
+            leaveTrail = false;
+
+            // Update slider values
+            particleSlider.value = particleCount;
+            hueSlider.value = currentHue;
+            lightnessSlider.value = currentOpacity;
+            lineSpeedSlider.value = lineSpeed;
+            particleSpeedSlider.value = particleSpeed;
+
+            // Update display values
+            particleValueDisplay.textContent = particleCount;
+            hueValueDisplay.textContent = currentHue;
+            lightnessValueDisplay.textContent = currentOpacity;
+            lineSpeedValueDisplay.textContent = lineSpeed;
+            particleSpeedValueDisplay.textContent = particleSpeed;
+
+            // Re-initialize particles with the new speed and count
+            updateParticleCount(particleCount);
+            updateHueThumbColor(); // Update hue thumb color after resetting
+          });
+          
+          // Set initial thumb color on load
+          updateHueThumbColor();
+
+          // Start the drawing loop
+          draw();
+        }
+        
+        // This is the correct way to ensure the script runs after the document is loaded
+        window.onload = init;
+      })();
+    </script>
+  </body>
+</html>
